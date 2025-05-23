@@ -1,6 +1,6 @@
 # Freedom Fighter 🎯🦅
 
-**Freedom Fighter** is a browser-based shooting game built for my final project in the Web Development course.
+**Freedom Fighter** is a shooting game in a browser, built for my final project for the Web development subject in the 5th year of high school general data and application management.
 
 ## 🎮 Gameplay
 Defend Croux-Town by shooting spy birds that threaten freedom! Aim with your mouse, shoot the birds, and avoid missing too many shots. If too many birds escape or you miss too often, it’s game over!
@@ -26,6 +26,3 @@ Defend Croux-Town by shooting spy birds that threaten freedom! Aim with your mou
 
 ## 📁 Assets
 Images and audio are located in the `/img` and `/sound` folders. Make sure these are included for full functionality.
-
-## 📚 License
-This project is for educational purposes only.
