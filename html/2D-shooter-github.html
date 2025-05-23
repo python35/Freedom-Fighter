@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Freedom Fighter</title>
+    <script src="https://kit.fontawesome.com/44e74ccc91.js" crossorigin="anonymous"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #e65151;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            margin: 20px auto;
+            overflow: hidden;
+        }
+        
+        #game-canvas {
+            border: 2px solid #444;
+            cursor: crosshair;
+        }
+        
+        #duck-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        #game-ui {
+            display: flex;
+            justify-content: space-between;
+            width: 800px;
+            padding: 10px 0;
+        }
+        
+        #start-screen, #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(201, 26, 26, 0.8);
+            z-index: 10;
+        }
+        
+        #game-over-screen {
+            display: none;
+        }
+        
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        .duck {
+            position: absolute;
+            width: 70px;
+            height: 60px;
+            background-repeat: no-repeat;
+            background-size: contain;
+        }
+        
+        .duck-right {
+            background-image: url('../img/duck.gif');
+        }
+        
+        .duck-left {
+            background-image: url('../img/duck.gif');
+            transform: scaleX(-1);
+        }
+        
+        .duck-falling {
+            background-image: url('../img/duck.gif');
+            transform: rotate(180deg);
+        }
+        
+        #sound-controls {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        #volume-slider {
+            margin-left: 10px;
+            width: 100px;
+        }
+        
+        #audio-controls {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        #gun-container {
+            position: absolute;
+            bottom: 0;
+            right: 50px;
+            z-index: 5;
+        }
+        
+        #gun-idle, #gun-shooting {
+            width: 200px;
+            height: 150px;
+            position: absolute;
+            bottom: 0;
+            right: 0;
+        }
+        
+        #gun-shooting {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Freedom Fighter!</h1>
+    <i style="margin-top: 20px; font-size: xxx-large;" class="fa-solid fa-flag-usa"></i>
+    
+    <div id="game-ui">
+        <div id="score">Score: 0</div>
+        <div id="lives">Levens: 5</div>
+    </div>
+    
+    <div id="game-container">
+        <canvas id="game-canvas" width="800" height="600"></canvas>
+        <div id="duck-container"></div>
+        
+        <div id="gun-container">
+            <img id="gun-idle" src="../img/ak-idle.gif" alt="Gun Idle">
+            <img id="gun-shooting" src="../img/ak.gif" alt="Gun Shooting">
+        </div>
+        
+        <div id="start-screen">
+            <h2>Freedom fighter</h2>
+            <p>Bescherm Croux-Town tegen de spionage vogels die tegen vrijheid zijn!</p>
+            <button id="start-button">Start Game</button>
+        </div>
+        
+        <div id="game-over-screen">
+            <h2>The Freedom is to high for you</h2>
+            <div id="final-score">Score: 0</div>
+            <button id="restart-button">Opnieuw Spelen</button>
+        </div>
+    </div>
+    
+    <div id="sound-controls">
+        <label for="volume-slider">Volume:</label>
+        <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="0.5">
+    </div>
+    
+    <div id="audio-controls">
+        <audio id="background-music" controls loop>
+            <source src="../sound/03. E1M1 - At Doom's Gate.mp3" type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio>
+        <button id="music-button">Muziek Aan/Uit</button>
+    </div>
+
+    <script>
+        // Dit is de geluidsmanager, die regelt alle audio in het spel.
+        // Add this to the SoundManager object at the beginning of your script
+const SoundManager = {
+    backgroundMusic: document.getElementById('background-music'),
+    hitSound: new Audio('https://freesound.org/data/previews/131/131657_2398403-lq.mp3'),
+    missSound: new Audio('https://freesound.org/data/previews/514/514133_9458518-lq.mp3'),
+    deathSound: new Audio('../sound/wtf-is-a-kilometer.mp3'), // Your local death sound file
+    musicButton: document.getElementById('music-button'),
+    volumeSlider: document.getElementById('volume-slider'),
+    
+    init: function() {
+        this.musicButton.addEventListener('click', this.toggleMusic.bind(this));
+        this.volumeSlider.addEventListener('input', this.updateVolume.bind(this));
+    },
+    
+    toggleMusic: function() {
+        if (this.backgroundMusic.paused) {
+            this.backgroundMusic.play();
+            this.musicButton.textContent = "Muziek Uit";
+        } else {
+            this.backgroundMusic.pause();
+            this.musicButton.textContent = "Muziek Aan";
+        }
+    },
+    
+    updateVolume: function() {
+        const volume = parseFloat(this.volumeSlider.value);
+        this.backgroundMusic.volume = volume;
+        this.hitSound.volume = volume;
+        this.missSound.volume = volume;
+        this.deathSound.volume = volume; // Also set volume for death sound
+    },
+    
+    playHitSound: function() {
+        this.hitSound.currentTime = 0;
+        this.hitSound.play().catch(error => console.log("Kon geluid niet afspelen"));
+    },
+    
+    playMissSound: function() {
+        this.missSound.currentTime = 0;
+        this.missSound.play().catch(error => console.log("Kon geluid niet afspelen"));
+    },
+    
+    // Add this new method
+    playDeathSound: function() {
+        this.deathSound.currentTime = 0;
+        this.deathSound.play().catch(error => console.log("Kon geluid niet afspelen"));
+    }
+};
+
+        
+        // Dit is de speler, oftewel het geweer.
+        const Player = {
+            gunIdleElement: document.getElementById('gun-idle'),
+            gunShootingElement: document.getElementById('gun-shooting'),
+            isShooting: false,
+            
+            // Laat het geweer schieten met een animatie.
+            shoot: function() {
+                if (this.isShooting) return;
+                
+                this.isShooting = true;
+                
+                this.gunIdleElement.style.display = 'none';
+                this.gunShootingElement.style.display = 'block';
+                
+                // Zorgt ervoor dat de schiet-GIF opnieuw afspeelt.
+                this.gunShootingElement.src = this.gunShootingElement.src;
+                
+                // Na de animatie gaat het geweer weer terug naar de ruststand.
+                setTimeout(() => {
+                    this.gunShootingElement.style.display = 'none';
+                    this.gunIdleElement.style.display = 'block';
+                    this.isShooting = false;
+                }, 500);
+            }
+        };
+        
+        // Dit is de blauwdruk voor elke eend die verschijnt.
+        function Duck(x, y, direction) {
+            this.id = 'duck-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+            this.x = x;
+            this.y = y;
+            this.width = 70;
+            this.height = 60;
+            this.speed = 2 + Math.random() * 3;
+            this.direction = direction;
+            this.alive = true; // Is de eend nog in leven?
+            this.falling = false; // Is de eend aan het vallen?
+            this.fallSpeed = 0;
+            
+            // Maak een HTML-element aan voor de eend.
+            this.element = document.createElement('div');
+            this.element.id = this.id;
+            this.element.className = 'duck duck-' + direction;
+            this.element.style.left = this.x + 'px';
+            this.element.style.top = this.y + 'px';
+            document.getElementById('duck-container').appendChild(this.element);
+        }
+        
+        // Werk de positie en staat van de eend bij.
+        Duck.prototype.update = function() {
+            if (this.alive && !this.falling) {
+                // De eend beweegt.
+                if (this.direction === 'right') {
+                    this.x += this.speed;
+                } else {
+                    this.x -= this.speed;
+                }
+                
+                this.element.style.left = this.x + 'px';
+                this.element.style.top = this.y + 'px';
+            } else if (this.falling) {
+                // De eend valt naar beneden.
+                this.fallSpeed += 0.2;
+                this.y += this.fallSpeed;
+                
+                this.element.style.top = this.y + 'px';
+                this.element.className = 'duck duck-falling'; // Verander het uiterlijk naar een vallende eend.
+            }
+        };
+        
+        // Wat er gebeurt als een eend geraakt wordt.
+        Duck.prototype.hit = function() {
+            this.alive = false;
+            this.falling = true;
+            this.fallSpeed = 1;
+        };
+        
+        // Verwijder de eend van het scherm.
+        Duck.prototype.remove = function() {
+            if (this.element && this.element.parentNode) {
+                this.element.parentNode.removeChild(this.element);
+            }
+        };
+        
+        // Dit is het hoofdobject van het spel.
+        const Game = {
+            canvas: document.getElementById('game-canvas'),
+            ctx: null,
+            startScreen: document.getElementById('start-screen'),
+            gameOverScreen: document.getElementById('game-over-screen'),
+            scoreDisplay: document.getElementById('score'),
+            livesDisplay: document.getElementById('lives'),
+            finalScoreDisplay: document.getElementById('final-score'),
+            backgroundImage: null,
+            ducks: [],
+            score: 0,
+            lives: 5,
+            gameRunning: false,
+            lastDuckSpawn: 0,
+            duckSpawnRate: 1500, // Hoe snel verschijnen de eenden.
+            missedShots: 0,
+            maxMissedShots: 10, // Hoeveel schoten je mag missen voordat je een leven verliest.
+            
+            // Start het spel op.
+            init: function() {
+                this.ctx = this.canvas.getContext('2d');
+                
+                // Laad de achtergrondafbeelding.
+                this.loadBackgroundImage();
+                
+                // Initialiseer het geluid.
+                SoundManager.init();
+                
+                // Knoppen instellen.
+                document.getElementById('start-button').addEventListener('click', () => this.startGame());
+                document.getElementById('restart-button').addEventListener('click', () => this.startGame());
+                this.canvas.addEventListener('click', (event) => this.shootDuck(event));
+            },
+            
+            // Laad de achtergrondafbeelding in.
+            loadBackgroundImage: function() {
+                this.backgroundImage = new Image();
+                this.backgroundImage.src = '../img/freedom.png';
+                this.backgroundImage.onload = () => {
+                    this.drawBackground();
+                };
+            },
+            
+            // Start een nieuw spel.
+            startGame: function() {
+                // Reset de spelstatus.
+                this.ducks.forEach(duck => duck.remove());
+                this.ducks = [];
+                this.score = 0;
+                this.lives = 5;
+                this.missedShots = 0;
+                this.gameRunning = true;
+                
+                // Start de achtergrondmuziek.
+                if (SoundManager.backgroundMusic.paused) {
+                    SoundManager.backgroundMusic.play().catch(error => {
+                        console.error("Kon muziek niet afspelen:", error);
+                    });
+                    SoundManager.musicButton.textContent = "Muziek Uit";
+                }
+                
+                // Werk de score en levens bij op het scherm.
+                this.updateScore();
+                this.updateLives();
+                
+                // Verberg de start- en game over schermen.
+                this.startScreen.style.display = 'none';
+                this.gameOverScreen.style.display = 'none';
+                
+                // Start de spellus.
+                requestAnimationFrame((timestamp) => this.gameLoop(timestamp));
+            },
+            
+            // De hoofdloop van het spel, waarin alles constant wordt bijgewerkt.
+            gameLoop: function(timestamp) {
+                if (!this.gameRunning) return;
+                
+                // Laat eenden verschijnen.
+                if (!this.lastDuckSpawn || timestamp - this.lastDuckSpawn > this.duckSpawnRate) {
+                    this.spawnDuck();
+                    this.lastDuckSpawn = timestamp;
+                    // Maak het spel moeilijker door de eenden sneller te laten verschijnen.
+                    this.duckSpawnRate = Math.max(500, this.duckSpawnRate - 10);
+                }
+                
+                // Werk de eenden bij (beweging, vallen, etc.).
+                this.updateDucks();
+                
+                // Teken de achtergrond opnieuw.
+                this.drawBackground();
+                
+                // Ga verder naar de volgende frame.
+                requestAnimationFrame((timestamp) => this.gameLoop(timestamp));
+            },
+            
+            drawBackground: function() {
+            // Maak het canvas leeg.
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    
+            // Teken de achtergrondafbeelding als die geladen is.
+            if (this.backgroundImage && this.backgroundImage.complete) {
+                this.ctx.drawImage(this.backgroundImage, 0, 0, this.canvas.width, this.canvas.height);
+            }
+        },
+
+            // Laat een nieuwe eend verschijnen.
+            spawnDuck: function() {
+                // Bepaal of de eend van links of rechts komt.
+                const direction = Math.random() > 0.5 ? 'right' : 'left';
+                let x, y;
+                
+                if (direction === 'right') {
+                    // Eend komt van links.
+                    x = -70;
+                } else {
+                    // Eend komt van rechts.
+                    x = this.canvas.width;
+                }
+                
+                // Eenden vliegen op verschillende hoogtes.
+                y = 50 + Math.random() * (this.canvas.height * 0.6 - 50);
+                
+                const duck = new Duck(x, y, direction);
+                this.ducks.push(duck);
+            },
+            
+            // Werk de staat van alle eenden bij en verwijder ze als ze van het scherm zijn.
+            updateDucks: function() {
+                for (let i = this.ducks.length - 1; i >= 0; i--) {
+                    const duck = this.ducks[i];
+                    
+                    duck.update();
+                    
+                    // Verwijder eenden die van het scherm vliegen.
+                    if ((duck.direction === 'right' && duck.x > this.canvas.width) || 
+                        (duck.direction === 'left' && duck.x < -duck.width)) {
+                        duck.remove();
+                        this.ducks.splice(i, 1);
+                        // Je verliest een leven als een eend ontsnapt.
+                        this.lives--;
+                        this.updateLives();
+                        
+                        if (this.lives <= 0) {
+                            this.gameOver();
+                        }
+                    }
+                    
+                    // Verwijder vallende eenden die de grond raken.
+                    if (duck.falling && duck.y > this.canvas.height * 0.7 - duck.height) {
+                        duck.remove();
+                        this.ducks.splice(i, 1);
+                    }
+                }
+            },
+            
+            // Wat er gebeurt als je klikt om te schieten.
+            shootDuck: function(event) {
+                if (!this.gameRunning) return;
+                
+                // Laat het geweer bewegen.
+                Player.shoot();
+                
+                // Bereken waar je hebt geklikt op het scherm.
+                const rect = this.canvas.getBoundingClientRect();
+                const mouseX = event.clientX - rect.left;
+                const mouseY = event.clientY - rect.top;
+                
+                let hit = false;
+                
+                // Controleer of je een eend hebt geraakt.
+                for (let i = 0; i < this.ducks.length; i++) {
+                    const duck = this.ducks[i];
+                    
+                    if (duck.alive && !duck.falling && 
+                        mouseX >= duck.x && mouseX <= duck.x + duck.width &&
+                        mouseY >= duck.y && mouseY <= duck.y + duck.height) {
+                        
+                        // Eend geraakt!
+                        duck.hit();
+                        this.score += 10;
+                        this.updateScore();
+                        hit = true;
+                        SoundManager.playHitSound();
+                        break;
+                    }
+                }
+                
+                if (!hit) {
+                    // Je hebt gemist.
+                    this.missedShots++;
+                    
+                    // Speel het miss-geluid.
+                    SoundManager.playMissSound();
+                    
+                    // Teken een effect waar je hebt geschoten.
+                    this.drawShotEffect(mouseX, mouseY);
+                    
+                    if (this.missedShots >= this.maxMissedShots) {
+                        this.missedShots = 0;
+                        this.lives--;
+                        this.updateLives();
+                        
+                        if (this.lives <= 0) {
+                            this.gameOver();
+                        }
+                    }
+                }
+            },
+            
+            // Teken een klein effect als je mist.
+            drawShotEffect: function(x, y) {
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, 10, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Teken een kruisje.
+                this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x - 10, y - 10);
+                this.ctx.lineTo(x + 10, y + 10);
+                this.ctx.moveTo(x + 10, y - 10);
+                this.ctx.lineTo(x - 10, y + 10);
+                this.ctx.stroke();
+            },
+            
+            // Werk de score op het scherm bij.
+            updateScore: function() {
+                this.scoreDisplay.textContent = `Score: ${this.score}`;
+            },
+            
+            // Werk de levens op het scherm bij.
+            updateLives: function() {
+                this.livesDisplay.textContent = `Levens: ${this.lives}`;
+            },
+            
+            // Wat er gebeurt als het spel voorbij is.
+            // Modify the gameOver function in your Game object
+        gameOver: function() {
+            this.gameRunning = false;
+            this.finalScoreDisplay.textContent = `Score: ${this.score}`;
+            this.gameOverScreen.style.display = 'flex';
+    
+             // Stop background music
+            SoundManager.backgroundMusic.pause();
+    
+            // Play death sound
+            SoundManager.deathSound.currentTime = 0;
+            SoundManager.deathSound.play().catch(error => console.log("Kon geluid niet afspelen"));
+}
+
+        };
+            
+        // Start het spel op wanneer de pagina laadt.
+        Game.init();
+    </script>
+</body>
+</html>
