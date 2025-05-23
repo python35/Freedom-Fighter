@@ -21,7 +21,7 @@ Defend Croux-Town by shooting spy birds that threaten freedom! Aim with your mou
 
 ## 🚀 How to Run
 1. Clone or download the project.
-2. Open `index.html` in a modern web browser.
+2. Open `2D-shooter-github.html` in a modern web browser.
 3. Click “Start Game” and enjoy!
 
 ## 📁 Assets
